@@ -41,6 +41,22 @@ jobs:
         workload_identity_provider: 'projects/727026638213/locations/global/workloadIdentityPools/accenture-lab-identitypool/providers/accenture-lab-identityprovider'
         # Omit 'service_account' for direct WIF access.
         # The action will authenticate using the GitHub Actions OIDC token.
+    - name: 'Debug: Check Authentication and Context'
+      run: |
+        echo "--- GitHub Context ---"
+        echo "Repository: ${{ github.repository }}"
+        echo "Ref: ${{ github.ref }}"
+        echo "Actor: ${{ github.actor }}"
+        echo "----------------------"
+        echo ""
+        echo "--- gcloud Auth Info ---"
+        gcloud auth list
+        echo "------------------------"
+        echo ""
+        echo "--- Docker Config ---"
+        echo "Verifying Docker credential helper for GAR..."
+        cat ~/.docker/config.json
+        echo "---------------------"
 
     # Build the Docker image and push it to Google Artifact Registry
     - name: Build and Push Docker Image
