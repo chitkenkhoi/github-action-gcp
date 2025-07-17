@@ -42,6 +42,16 @@ jobs:
         workload_identity_provider: 'projects/727026638213/locations/global/workloadIdentityPools/accenture-lab-identitypool/providers/accenture-lab-identityprovider'
         # Omit 'service_account' for direct WIF access.
         # The action will authenticate using the GitHub Actions OIDC token.
+    - name: Set up gcloud CLI
+      uses: google-github-actions/setup-gcloud@v1
+
+    - name: Configure Docker for Artifact Registry
+      run: |
+        gcloud auth configure-docker us-central1-docker.pkg.dev
+
+    - name: Configure Docker for Artifact Registry
+      run: gcloud config list
+      
     - name: 'Debug: Check Authentication and Context'
       run: |
         echo "--- GitHub Context ---"
