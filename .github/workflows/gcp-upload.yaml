@@ -87,7 +87,7 @@ jobs:
         region: '${{ env.GAR_LOCATION }}'
         # Use the full image digest from the build-push step to ensure the exact image is deployed
         image: '${{ env.GAR_LOCATION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/accenture-lab/${{ env.IMAGE_NAME }}@${{ steps.build-push.outputs.digest }}'
-
+        port: '80'
     # Optional: Test the new deployment by curling the service URL
     - name: 'Use output'
       run: 'curl "${{ steps.deploy.outputs.url }}"'
