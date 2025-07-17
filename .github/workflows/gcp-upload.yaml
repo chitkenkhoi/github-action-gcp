@@ -27,13 +27,21 @@ jobs:
     steps:
     - name: Checkout repository
       uses: 'actions/checkout@v4'
+    
+    - name: 'Debug: Print GitHub Context'
+      run: |
+        echo "Repository: ${{ github.repository }}"
+        echo "Ref: ${{ github.ref }}"
+
+    - id: 'auth'
+      uses: 'google-github-actions/auth@v2'
 
     # Authenticate to Google Cloud using Workload Identity Federation
     # This action will automatically configure the Docker credential helper
     - id: 'auth'
       uses: 'google-github-actions/auth@v2'
       with:
-        workload_identity_provider: 'projects/727026638213/locations/global/workloadIdentityPools/accenture-lab-identitypool/providers/accenture-lab-identityprovider'
+        workload_identity_provider: 'projects/accenture-intern/locations/global/workloadIdentityPools/accenture-lab-identitypool/providers/accenture-lab-identityprovider'
         # Omit 'service_account' for direct WIF access.
         # The action will authenticate using the GitHub Actions OIDC token.
 
