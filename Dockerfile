@@ -15,4 +15,4 @@ EXPOSE 80
 # We add this CMD to be explicit. The `-g "daemon off;"` argument
 # is crucial for running Nginx in the foreground, which is required
 # by container orchestrators like Docker and Cloud Run.
-CMD ["nginx", "-g", "daemon off;"]
+CMD /bin/sh -c "sed -i 's/listen 80/listen $PORT/' /etc/nginx/conf.d/default.conf && nginx -g 'daemon off;'"
