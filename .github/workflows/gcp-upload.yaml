@@ -1,0 +1,43 @@
+# .github/workflows/gcp-upload.yml
+
+name: 'Upload to Google Cloud Storage'
+
+# Run on pushes to the main branch
+on:
+  push:
+    branches:
+      - main
+
+# 1. IMPORTANT: This permission is required for the OIDC token exchange.
+permissions:
+  contents: 'read'
+  id-token: 'write'
+
+jobs:
+  upload-file:
+    runs-on: ubuntu-latest
+    steps:
+    - name: 'Checkout Repository'
+      uses: actions/checkout@v3
+
+    # 2. Authenticate to Google Cloud
+    - id: 'auth'
+      uses: 'google-github-actions/auth@v1'
+      with:
+        # PASTE THE FULL PROVIDER ID YOU COPIED IN THE PREVIOUS STEP
+        workload_identity_provider: 'projects/703917285743/locations/global/workloadIdentityPools/github-pool/providers/github-provider'
+        # PASTE THE EMAIL OF THE GCP SERVICE ACCOUNT YOU CREATED
+        service_account: 'github-actions-sa@bot-tracker-a0a25.iam.gserviceaccount.com'
+
+    # Create a dummy file to upload
+    - name: 'Create a test file'
+      run: echo "Hello from GitHub Actions!" > hello.txt
+
+    # 3. Use the authenticated identity to upload a file to the GCS bucket
+    - id: 'upload-file'
+      uses: 'google-github-actions/upload-cloud-storage@v1'
+      with:
+        # PASTE THE NAME OF YOUR GCS BUCKET
+        path: 'hello.txt'
+        destination: 'my-test-github-action'
+        parent: false
