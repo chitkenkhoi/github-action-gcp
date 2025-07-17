@@ -33,9 +33,6 @@ jobs:
         echo "Repository: ${{ github.repository }}"
         echo "Ref: ${{ github.ref }}"
 
-    - id: 'auth'
-      uses: 'google-github-actions/auth@v2'
-
     # Authenticate to Google Cloud using Workload Identity Federation
     # This action will automatically configure the Docker credential helper
     - id: 'auth'
