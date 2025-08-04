@@ -38,6 +38,7 @@ env:
   LB_NAME: 'global-lb-for-${{ github.event.inputs.service_name }}'
   IP_NAME: 'lb-static-ip-for-${{ github.event.inputs.service_name }}'
   SSL_CERT_NAME: 'managed-ssl-for-${{ github.event.inputs.domain }}'
+  SERVICE_ACCOUNT_NAME: 'github-actions-sa'
 
 jobs:
   provision:
@@ -55,7 +56,8 @@ jobs:
       uses: 'google-github-actions/auth@v2'
       with:
         project_id: '${{ env.PROJECT_ID }}'
-        workload_identity_provider: 'projects/727026638213/locations/global/workloadIdentityPools/accenture-lab-identitypool/providers/accenture-lab-identityprovider'
+        workload_identity_provider: 'projects/768212343059/locations/global/workloadIdentityPools/github-pool/providers/github-provider'
+        service_account: '${{ env.SERVICE_ACCOUNT_NAME }}@${{ env.PROJECT_ID }}.iam.gserviceaccount.com' # Optional: Use a specific service account
 
     - name: Set up gcloud CLI
       uses: 'google-github-actions/setup-gcloud@v1'
@@ -69,7 +71,7 @@ jobs:
           --description="Docker repository for application images" \
           --project=${{ env.PROJECT_ID }} \
           || echo "Artifact Registry repository already exists."
-          
+
     - name: '[Step 1] Create Serverless NEG for Cloud Run'
       run: |
         echo "Creating NEG '${{ env.NEG_NAME }}'..."
