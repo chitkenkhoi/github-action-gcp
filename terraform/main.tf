@@ -57,7 +57,8 @@ resource "google_cloud_run_v2_service_iam_binding" "allow_public" {
 
   role = "roles/run.invoker"
   members = [
-    "allUsers",
+    # Change this from "allUsers"
+    "serviceAccount:${var.project_id}.iam.gserviceaccount.com" 
   ]
 }
 
