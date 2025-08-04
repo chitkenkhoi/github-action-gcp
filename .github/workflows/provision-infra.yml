@@ -35,6 +35,7 @@ env:
   LB_NAME: 'global-lb-for-${{ github.event.inputs.service_name }}'
   IP_NAME: 'lb-static-ip-for-${{ github.event.inputs.service_name }}'
   SERVICE_ACCOUNT_NAME: 'github-actions-sa'
+  GAR_REPOSITORY_NAME: ${{ github.event.inputs.gar_repository_name }}
 
 jobs:
   provision:
