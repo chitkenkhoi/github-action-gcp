@@ -23,5 +23,5 @@ variable "gar_repository_name" {
 variable "image_name_with_tag" {
   description = "The full name of the container image to deploy, including the tag/digest."
   type        = string
-  default     = "us-central1-docker.pkg.dev/google-samples/containers/gke/hello-app:1.0" # A placeholder default
+  default     = "us-docker.pkg.dev/cloudrun/container/hello" # A placeholder default
 }
