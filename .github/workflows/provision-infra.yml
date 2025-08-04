@@ -21,9 +21,6 @@ on:
         description: 'Name for the Artifact Registry repository'
         required: true
         default: 'accenture-lab'
-      domain:
-        description: 'Your custom domain (e.g., app.your-domain.com)'
-        required: true
 
 env:
   PROJECT_ID: ${{ github.event.inputs.project_id }}
@@ -34,10 +31,9 @@ env:
   NEG_NAME: 'neg-for-${{ github.event.inputs.service_name }}'
   BACKEND_SERVICE_NAME: 'backend-for-${{ github.event.inputs.service_name }}'
   URL_MAP_NAME: 'lb-url-map-for-${{ github.event.inputs.service_name }}'
-  PROXY_NAME: 'lb-https-proxy-for-${{ github.event.inputs.service_name }}'
+  PROXY_NAME: 'lb-http-proxy-for-${{ github.event.inputs.service_name }}'
   LB_NAME: 'global-lb-for-${{ github.event.inputs.service_name }}'
   IP_NAME: 'lb-static-ip-for-${{ github.event.inputs.service_name }}'
-  SSL_CERT_NAME: 'managed-ssl-for-${{ github.event.inputs.domain }}'
   SERVICE_ACCOUNT_NAME: 'github-actions-sa'
 
 jobs:
@@ -111,43 +107,73 @@ jobs:
           --global \
           --project=${{ env.PROJECT_ID }} || echo "IP Address already exists."
         
-    - name: '[Step 6] Create a Google-managed SSL certificate'
+    # - name: '[Step 6] Create a Google-managed SSL certificate'
+    #   run: |
+    #     echo "Creating SSL Certificate '${{ env.SSL_CERT_NAME }}' for domain '${{ env.YOUR_DOMAIN }}'..."
+    #     gcloud compute ssl-certificates create ${{ env.SSL_CERT_NAME }} \
+    #       --domains=${{ env.YOUR_DOMAIN }} \
+    #       --global \
+    #       --project=${{ env.PROJECT_ID }} || echo "SSL Certificate already exists."
+    #     echo "SSL Certificate is being provisioned. This can take up to 60 minutes."
+    - name: '[Step 6] Create a Target HTTP Proxy'
       run: |
-        echo "Creating SSL Certificate '${{ env.SSL_CERT_NAME }}' for domain '${{ env.YOUR_DOMAIN }}'..."
-        gcloud compute ssl-certificates create ${{ env.SSL_CERT_NAME }} \
-          --domains=${{ env.YOUR_DOMAIN }} \
-          --global \
-          --project=${{ env.PROJECT_ID }} || echo "SSL Certificate already exists."
-        echo "SSL Certificate is being provisioned. This can take up to 60 minutes."
-        
-    - name: '[Step 7] Create a Target HTTPS Proxy'
-      run: |
-        echo "Creating HTTPS Proxy '${{ env.PROXY_NAME }}'..."
-        gcloud compute target-https-proxies create ${{ env.PROXY_NAME }} \
-          --ssl-certificates=${{ env.SSL_CERT_NAME }} \
+        echo "Creating HTTP Proxy '${{ env.PROXY_NAME }}'..."
+        gcloud compute target-http-proxies create ${{ env.PROXY_NAME }} \
           --url-map=${{ env.URL_MAP_NAME }} \
-          --global \
-          --project=${{ env.PROJECT_ID }} || echo "Target Proxy already exists."
+          --project=${{ env.PROJECT_ID }} || echo "Target HTTP Proxy already exists."
+        
+    # - name: '[Step 7] Create a Target HTTPS Proxy'
+    #   run: |
+    #     echo "Creating HTTPS Proxy '${{ env.PROXY_NAME }}'..."
+    #     gcloud compute target-https-proxies create ${{ env.PROXY_NAME }} \
+    #       --ssl-certificates=${{ env.SSL_CERT_NAME }} \
+    #       --url-map=${{ env.URL_MAP_NAME }} \
+    #       --global \
+    #       --project=${{ env.PROJECT_ID }} || echo "Target Proxy already exists."
 
-    - name: '[Step 8] Create the Global Forwarding Rule (Load Balancer)'
+    # - name: '[Step 8] Create the Global Forwarding Rule (Load Balancer)'
+    #   run: |
+    #     echo "Creating Forwarding Rule '${{ env.LB_NAME }}'..."
+    #     IP_ADDRESS=$(gcloud compute addresses describe ${{ env.IP_NAME }} --global --project=${{ env.PROJECT_ID }} --format="value(address)")
+    #     gcloud compute forwarding-rules create ${{ env.LB_NAME }} \
+    #       --address=$IP_ADDRESS \
+    #       --target-https-proxy=${{ env.PROXY_NAME }} \
+    #       --global \
+    #       --ports=443 \
+    #       --project=${{ env.PROJECT_ID }} || echo "Forwarding Rule already exists."
+
+    # - name: 'IMPORTANT: Final Instructions'
+    #   run: |
+    #     IP_ADDRESS=$(gcloud compute addresses describe ${{ env.IP_NAME }} --global --project=${{ env.PROJECT_ID }} --format="value(address)")
+    #     echo "✅✅✅ INFRASTRUCTURE PROVISIONING COMPLETE ✅✅✅"
+    #     echo "====================================================================================="
+    #     echo "ACTION REQUIRED: Please update your DNS settings for the domain '${{ env.YOUR_DOMAIN }}'."
+    #     echo "Create an 'A' record pointing to the following static IP address:"
+    #     echo "IP ADDRESS: $IP_ADDRESS"
+    #     echo "====================================================================================="
+    #     echo "NOTE: The SSL certificate may take up to 60 minutes to be provisioned by Google."
+    #     echo "You can check its status with: gcloud compute ssl-certificates describe ${{ env.SSL_CERT_NAME }} --global"
+    - name: '[Step 7] Create the Global Forwarding Rule (HTTP Load Balancer)'
       run: |
-        echo "Creating Forwarding Rule '${{ env.LB_NAME }}'..."
+        echo "Creating Forwarding Rule '${{ env.LB_NAME }}' for HTTP traffic..."
         IP_ADDRESS=$(gcloud compute addresses describe ${{ env.IP_NAME }} --global --project=${{ env.PROJECT_ID }} --format="value(address)")
         gcloud compute forwarding-rules create ${{ env.LB_NAME }} \
           --address=$IP_ADDRESS \
-          --target-https-proxy=${{ env.PROXY_NAME }} \
+          --target-http-proxy=${{ env.PROXY_NAME }} \
           --global \
-          --ports=443 \
+          --ports=80 \
           --project=${{ env.PROJECT_ID }} || echo "Forwarding Rule already exists."
 
+    # <<< THAY ĐỔI: Hướng dẫn cuối cùng chỉ hiển thị IP
     - name: 'IMPORTANT: Final Instructions'
       run: |
         IP_ADDRESS=$(gcloud compute addresses describe ${{ env.IP_NAME }} --global --project=${{ env.PROJECT_ID }} --format="value(address)")
         echo "✅✅✅ INFRASTRUCTURE PROVISIONING COMPLETE ✅✅✅"
         echo "====================================================================================="
-        echo "ACTION REQUIRED: Please update your DNS settings for the domain '${{ env.YOUR_DOMAIN }}'."
-        echo "Create an 'A' record pointing to the following static IP address:"
-        echo "IP ADDRESS: $IP_ADDRESS"
+        echo "ACTION REQUIRED: You can now access your application using the following IP address."
+        echo "Make sure to use the HTTP protocol (not HTTPS)."
+        echo ""
+        echo "URL: http://$IP_ADDRESS"
+        echo ""
+        echo "NOTE: Your browser will show a 'Not Secure' warning. This is expected."
         echo "====================================================================================="
-        echo "NOTE: The SSL certificate may take up to 60 minutes to be provisioned by Google."
-        echo "You can check its status with: gcloud compute ssl-certificates describe ${{ env.SSL_CERT_NAME }} --global"
