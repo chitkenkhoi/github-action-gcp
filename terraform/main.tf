@@ -27,39 +27,39 @@ resource "google_artifact_registry_repository" "repo" {
 }
 
 # Define the Cloud Run service itself
-# resource "google_cloud_run_v2_service" "main" {
-#   project  = var.project_id
-#   name     = var.service_name
-#   location = var.region
+resource "google_cloud_run_v2_service" "main" {
+  project  = var.project_id
+  name     = var.service_name
+  location = var.region
 
-#   # This setting restricts traffic to only come from the internal LB and health checks.
-#   # This corresponds to `--ingress=internal-and-cloud-load-balancing`
-#   ingress = "INGRESS_TRAFFIC_INTERNAL_LOAD_BALANCER"
+  # This setting restricts traffic to only come from the internal LB and health checks.
+  # This corresponds to `--ingress=internal-and-cloud-load-balancing`
+  ingress = "INGRESS_TRAFFIC_INTERNAL_LOAD_BALANCER"
 
-#   template {
-#     containers {
-#       image = var.image_name_with_tag
-#       ports {
-#         container_port = 80 # Corresponds to --port 80
-#       }
-#     }
-#   }
-# }
+  template {
+    containers {
+      image = var.image_name_with_tag
+      ports {
+        container_port = 80 # Corresponds to --port 80
+      }
+    }
+  }
+}
 
-# # --- FIX 1: Manage IAM with a separate resource ---
-# # The 'iam_policy' block is not valid inside the service definition.
-# # We create a separate IAM binding resource to allow unauthenticated access.
-# # This corresponds to the `--allow-unauthenticated` flag.
-# resource "google_cloud_run_v2_service_iam_binding" "allow_public" {
-#   project  = google_cloud_run_v2_service.main.project
-#   location = google_cloud_run_v2_service.main.location
-#   name     = google_cloud_run_v2_service.main.name
+# --- FIX 1: Manage IAM with a separate resource ---
+# The 'iam_policy' block is not valid inside the service definition.
+# We create a separate IAM binding resource to allow unauthenticated access.
+# This corresponds to the `--allow-unauthenticated` flag.
+resource "google_cloud_run_v2_service_iam_binding" "allow_public" {
+  project  = google_cloud_run_v2_service.main.project
+  location = google_cloud_run_v2_service.main.location
+  name     = google_cloud_run_v2_service.main.name
 
-#   role = "roles/run.invoker"
-#   members = [
-#     "allUsers",
-#   ]
-# }
+  role = "roles/run.invoker"
+  members = [
+    "allUsers",
+  ]
+}
 
 # [Step 1] Create Serverless NEG for the Cloud Run service
 # The syntax for a SERVERLESS NEG is correct, but it relies on a modern provider version.
@@ -71,8 +71,7 @@ resource "google_compute_region_network_endpoint_group" "neg" {
 
   # This block links the NEG directly to the Cloud Run service.
   cloud_run {
-    # service = google_cloud_run_v2_service.main.name
-    service = "hello-cloud-run-quangkhoi"
+    service = google_cloud_run_v2_service.main.name
   }
 }
 
