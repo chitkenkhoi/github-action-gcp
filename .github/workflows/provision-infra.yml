@@ -1,0 +1,151 @@
+# .github/workflows/provision-infra.yml
+
+name: Provision Google Cloud Infrastructure
+
+on:
+  workflow_dispatch:
+    inputs:
+      project_id:
+        description: 'Google Cloud Project ID'
+        required: true
+        default: 'arboreal-retina-466009-h1'
+      region:
+        description: 'Region for Cloud Run and NEG'
+        required: true
+        default: 'us-central1'
+      service_name:
+        description: 'Cloud Run Service Name'
+        required: true
+        default: 'hello-cloud-run-quangkhoi'
+      gar_repository_name:
+        description: 'Name for the Artifact Registry repository'
+        required: true
+        default: 'accenture-lab'
+      domain:
+        description: 'Your custom domain (e.g., app.your-domain.com)'
+        required: true
+
+env:
+  PROJECT_ID: ${{ github.event.inputs.project_id }}
+  REGION: ${{ github.event.inputs.region }}
+  SERVICE_NAME: ${{ github.event.inputs.service_name }}
+  YOUR_DOMAIN: ${{ github.event.inputs.domain }}
+  # Đặt tên cố định cho các tài nguyên hạ tầng
+  NEG_NAME: 'neg-for-${{ github.event.inputs.service_name }}'
+  BACKEND_SERVICE_NAME: 'backend-for-${{ github.event.inputs.service_name }}'
+  URL_MAP_NAME: 'lb-url-map-for-${{ github.event.inputs.service_name }}'
+  PROXY_NAME: 'lb-https-proxy-for-${{ github.event.inputs.service_name }}'
+  LB_NAME: 'global-lb-for-${{ github.event.inputs.service_name }}'
+  IP_NAME: 'lb-static-ip-for-${{ github.event.inputs.service_name }}'
+  SSL_CERT_NAME: 'managed-ssl-for-${{ github.event.inputs.domain }}'
+
+jobs:
+  provision:
+    name: Create Load Balancer and related resources
+    runs-on: ubuntu-latest
+    permissions:
+      contents: 'read'
+      id-token: 'write'
+
+    steps:
+    - name: Checkout repository
+      uses: 'actions/checkout@v4'
+
+    - id: 'auth'
+      uses: 'google-github-actions/auth@v2'
+      with:
+        project_id: '${{ env.PROJECT_ID }}'
+        workload_identity_provider: 'projects/727026638213/locations/global/workloadIdentityPools/accenture-lab-identitypool/providers/accenture-lab-identityprovider'
+
+    - name: Set up gcloud CLI
+      uses: 'google-github-actions/setup-gcloud@v1'
+    
+    - name: '[Step 0] Create Artifact Registry Repository'
+      run: |
+        echo "Creating Artifact Registry repository '${{ env.GAR_REPOSITORY_NAME }}' in region '${{ env.REGION }}'..."
+        gcloud artifacts repositories create ${{ env.GAR_REPOSITORY_NAME }} \
+          --repository-format=docker \
+          --location=${{ env.REGION }} \
+          --description="Docker repository for application images" \
+          --project=${{ env.PROJECT_ID }} \
+          || echo "Artifact Registry repository already exists."
+          
+    - name: '[Step 1] Create Serverless NEG for Cloud Run'
+      run: |
+        echo "Creating NEG '${{ env.NEG_NAME }}'..."
+        gcloud compute network-endpoint-groups create ${{ env.NEG_NAME }} \
+          --region=${{ env.REGION }} \
+          --network-endpoint-type=serverless \
+          --cloud-run-service=${{ env.SERVICE_NAME }} \
+          --project=${{ env.PROJECT_ID }} || echo "NEG already exists."
+
+    - name: '[Step 2] Create a global Backend Service'
+      run: |
+        echo "Creating Backend Service '${{ env.BACKEND_SERVICE_NAME }}'..."
+        gcloud compute backend-services create ${{ env.BACKEND_SERVICE_NAME }} \
+          --global \
+          --project=${{ env.PROJECT_ID }} || echo "Backend service already exists."
+
+    - name: '[Step 3] Add NEG to the Backend Service'
+      run: |
+        echo "Attaching NEG to Backend Service..."
+        gcloud compute backend-services add-backend ${{ env.BACKEND_SERVICE_NAME }} \
+          --global \
+          --network-endpoint-group=${{ env.NEG_NAME }} \
+          --network-endpoint-group-region=${{ env.REGION }} \
+          --project=${{ env.PROJECT_ID }} || echo "Backend already attached."
+
+    - name: '[Step 4] Create a URL Map'
+      run: |
+        echo "Creating URL Map '${{ env.URL_MAP_NAME }}'..."
+        gcloud compute url-maps create ${{ env.URL_MAP_NAME }} \
+          --default-service=${{ env.BACKEND_SERVICE_NAME }} \
+          --project=${{ env.PROJECT_ID }} || echo "URL Map already exists."
+
+    - name: '[Step 5] Reserve a global static IP address'
+      run: |
+        echo "Creating Static IP '${{ env.IP_NAME }}'..."
+        gcloud compute addresses create ${{ env.IP_NAME }} \
+          --global \
+          --project=${{ env.PROJECT_ID }} || echo "IP Address already exists."
+        
+    - name: '[Step 6] Create a Google-managed SSL certificate'
+      run: |
+        echo "Creating SSL Certificate '${{ env.SSL_CERT_NAME }}' for domain '${{ env.YOUR_DOMAIN }}'..."
+        gcloud compute ssl-certificates create ${{ env.SSL_CERT_NAME }} \
+          --domains=${{ env.YOUR_DOMAIN }} \
+          --global \
+          --project=${{ env.PROJECT_ID }} || echo "SSL Certificate already exists."
+        echo "SSL Certificate is being provisioned. This can take up to 60 minutes."
+        
+    - name: '[Step 7] Create a Target HTTPS Proxy'
+      run: |
+        echo "Creating HTTPS Proxy '${{ env.PROXY_NAME }}'..."
+        gcloud compute target-https-proxies create ${{ env.PROXY_NAME }} \
+          --ssl-certificates=${{ env.SSL_CERT_NAME }} \
+          --url-map=${{ env.URL_MAP_NAME }} \
+          --global \
+          --project=${{ env.PROJECT_ID }} || echo "Target Proxy already exists."
+
+    - name: '[Step 8] Create the Global Forwarding Rule (Load Balancer)'
+      run: |
+        echo "Creating Forwarding Rule '${{ env.LB_NAME }}'..."
+        IP_ADDRESS=$(gcloud compute addresses describe ${{ env.IP_NAME }} --global --project=${{ env.PROJECT_ID }} --format="value(address)")
+        gcloud compute forwarding-rules create ${{ env.LB_NAME }} \
+          --address=$IP_ADDRESS \
+          --target-https-proxy=${{ env.PROXY_NAME }} \
+          --global \
+          --ports=443 \
+          --project=${{ env.PROJECT_ID }} || echo "Forwarding Rule already exists."
+
+    - name: 'IMPORTANT: Final Instructions'
+      run: |
+        IP_ADDRESS=$(gcloud compute addresses describe ${{ env.IP_NAME }} --global --project=${{ env.PROJECT_ID }} --format="value(address)")
+        echo "✅✅✅ INFRASTRUCTURE PROVISIONING COMPLETE ✅✅✅"
+        echo "====================================================================================="
+        echo "ACTION REQUIRED: Please update your DNS settings for the domain '${{ env.YOUR_DOMAIN }}'."
+        echo "Create an 'A' record pointing to the following static IP address:"
+        echo "IP ADDRESS: $IP_ADDRESS"
+        echo "====================================================================================="
+        echo "NOTE: The SSL certificate may take up to 60 minutes to be provisioned by Google."
+        echo "You can check its status with: gcloud compute ssl-certificates describe ${{ env.SSL_CERT_NAME }} --global"
