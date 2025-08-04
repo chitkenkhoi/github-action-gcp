@@ -177,7 +177,7 @@ jobs:
       with:
         project_id: '${{ env.PROJECT_ID }}'
         workload_identity_provider: 'projects/768212343059/locations/global/workloadIdentityPools/github-pool/providers/github-provider'
-        service_account: '${{ env.SERVICE_ACCOUNT_NAME }}@${{ env.PROJECT_ID }}.iam.gserviceaccount.com'
+        # service_account: '${{ env.SERVICE_ACCOUNT_NAME }}@${{ env.PROJECT_ID }}.iam.gserviceaccount.com'
 
     - name: 'Set up Terraform'
       uses: hashicorp/setup-terraform@v2
