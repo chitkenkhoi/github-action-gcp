@@ -9,6 +9,7 @@ on:
     paths:
       - 'src/**' # Example: only trigger on source code changes, not terraform changes
       - 'Dockerfile'
+      - 'index.html'
   workflow_dispatch:
 
 env:

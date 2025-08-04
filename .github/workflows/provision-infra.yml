@@ -1,6 +1,6 @@
 # .github/workflows/provision-infra.yml
 
-name: Terraform: Provision Google Cloud Infrastructure
+name: "Terraform: Provision Google Cloud Infrastructure"
 
 on:
   push:
