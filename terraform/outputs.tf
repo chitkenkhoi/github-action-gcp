@@ -5,7 +5,7 @@ output "load_balancer_ip" {
   value       = google_compute_global_address.ip.address
 }
 
-# output "cloud_run_service_url" {
-#   description = "The direct URL of the Cloud Run service."
-#   value       = google_cloud_run_v2_service.main.uri
-# }
+output "cloud_run_service_url" {
+  description = "The direct URL of the Cloud Run service."
+  value       = google_cloud_run_v2_service.main.uri
+}
